@@ -1,0 +1,137 @@
+import pandas as pd
+import numpy as np
+from openpyxl import load_workbook
+from openpyxl.styles import numbers
+
+# ----- फ़ाइल नाम (अगर नाम अलग हैं तो यहाँ बदलें) -----
+source_file = 'LeverEDGE_10C711_salesReturnDetail_202606220907037373.xlsx'
+template_file = 'sale_return_item_import.xlsx'
+output_file = 'sale_return_item_import_corrected.xlsx'
+
+# 1. सोर्स डेटा पढ़ें
+src = pd.read_excel(source_file, sheet_name='salesReturnDetail Report', skiprows=15)
+src = src[src['Sr No'].notna()]
+src = src[src['Sr No'] != 'GRAND TOTAL']
+
+# तारीखें
+src['Sales Return Date'] = pd.to_datetime(src['Sales Return Date'], dayfirst=True, errors='coerce')
+src['Bill Date'] = pd.to_datetime(src['Bill Date'], dayfirst=True, errors='coerce')
+
+# GST% निकालें
+src['GST %'] = np.where(src['Taxable Value'] != 0,
+                        (src['Tax Value'] / src['Taxable Value']) * 100,
+                        0).round(2)
+
+# 2. नया DataFrame बनाएँ
+target_cols = [
+    "Credit Note Number*", "Credit Note Date*", "Customer Name Or Alias Name*",
+    "CF - Party Custom Field Name 1", "CF - Party Custom Field Name 2", "CF - Party Custom Field Name 3",
+    "Original Invoice Number", "Original Invoice Date",
+    "Country Code For Mobile Number", "Mobile Number", "GSTIN",
+    "Billing Address Line 1", "Billing Address Line 2", "Billing Address Country",
+    "Billing Address State", "Billing Address City", "Billing Address Pincode",
+    "Shipping Name", "Shipping GSTIN",
+    "Shipping Address Line 1", "Shipping Address Line 2", "Shipping Address Country",
+    "Shipping Address State", "Shipping Address City", "Shipping Address Pincode",
+    "Broker Name", "Brokerage %", "Brokerage On Value",
+    "Transport Name", "Document number", "Document Date", "Vehicle Number",
+    "PO No.", "PO Date", "Credit Period", "Credit Period Type",
+    "CF - Trn. Custom Field Name 1", "CF - Trn. Custom Field Name 2", "CF - Trn. Custom Field Name 3",
+    "CF - Trn. Custom Field Name 4", "CF - Trn. Custom Field Name 5",
+    "Item Name Or Alias Name Or SKU*",
+    "CF - Item Custom Field Name 1", "CF - Item Custom Field Name 2", "CF - Item Custom Field Name 3",
+    "CF - Item Custom Field Name 4", "CF - Item Custom Field Name 5",
+    "Additional description for Item",
+    "Ledger Name", "Unit", "Quantity*",
+    "Free Quantity Unit", "Free Quantity",
+    "MRP", "Rate per Unit (Without GST)",
+    "Discount 1 Type", "Discount 1", "Discount 2 Type", "Discount 2",
+    "GST %", "Classification Nature Type", "RCM Applicable",
+    "Additional Charges 1 Ledger", "Additional Charges 1 Type",
+    "Additional Charges 1 Amount (Without GST)", "Additional Charges 1 GST %",
+    "Additional Charges 2 Ledger", "Additional Charges 2 Type",
+    "Additional Charges 2 Amount (Without GST)", "Additional Charges 2 GST %",
+    "Cess", "TCS Ledger", "TCS Rate", "Taxable Value For TCS",
+    "Add / less 1 Ledger", "Add / less 1 Type", "Add / less 1 Amount",
+    "Add / less 2 Ledger", "Add / less 2 Type", "Add / less 2 Amount",
+    "Round off Amount",
+    "TDS Ledger", "TDS Rate", "Taxable Value For TDS",
+    "Note", "Terms & Conditions",
+    "Payment 1 Ledger", "Payment 1 Date", "Payment 1 Amount", "Payment 1 Mode", "Payment 1 Reference Number",
+    "Payment 2 Ledger", "Payment 2 Date", "Payment 2 Amount", "Payment 2 Mode", "Payment 2 Reference Number"
+]
+
+rows = []
+for _, r in src.iterrows():
+    rows.append({
+        "Credit Note Number*": r['SR Number'],
+        "Credit Note Date*": r['Sales Return Date'],
+        "Customer Name Or Alias Name*": r['Party Name'],
+        "Original Invoice Number": r['Bill Number'],
+        "Original Invoice Date": r['Bill Date'],
+        "Vehicle Number": r['Vehicle'],
+        "Item Name Or Alias Name Or SKU*": r['Product Name'],
+        "Ledger Name": "Sale",
+        "Unit": "PCS-PIECES",
+        "Quantity*": r['Qty'],
+        "Free Quantity": r['Free Qty'],
+        "MRP": r['Product MRP'],
+        "Rate per Unit (Without GST)": r['Basic Rate'],
+        "Discount 1 Type": "₹" if r['Scheme Discount'] != 0 else None,
+        "Discount 1": r['Scheme Discount'] if r['Scheme Discount'] != 0 else None,
+        "Discount 2 Type": "₹" if r['Cash Discount'] != 0 else None,
+        "Discount 2": r['Cash Discount'] if r['Cash Discount'] != 0 else None,
+        "GST %": r['GST %'],
+        "Classification Nature Type": "Intrastate Sales Taxable",
+        **{c: None for c in target_cols if c not in [
+            "Credit Note Number*", "Credit Note Date*", "Customer Name Or Alias Name*",
+            "Original Invoice Number", "Original Invoice Date", "Vehicle Number",
+            "Item Name Or Alias Name Or SKU*", "Ledger Name", "Unit", "Quantity*",
+            "Free Quantity", "MRP", "Rate per Unit (Without GST)",
+            "Discount 1 Type", "Discount 1", "Discount 2 Type", "Discount 2",
+            "GST %", "Classification Nature Type"
+        ]}
+    })
+
+out_df = pd.DataFrame(rows, columns=target_cols)
+
+# 3. टेम्पलेट में लिखें
+wb = load_workbook(template_file)
+ws = wb['Sale Return Accounting']
+
+# पुराना डेटा हटाएँ
+ws.delete_rows(2, ws.max_row)
+
+# हेडर मैप
+header = [cell.value for cell in ws[1]]
+col_map = {col: idx+1 for idx, col in enumerate(header)}
+
+# डेटा भरें
+for r_idx, row in out_df.iterrows():
+    for col_name, val in row.items():
+        if col_name in col_map:
+            cell = ws.cell(row=r_idx+2, column=col_map[col_name])
+            cell.value = None if pd.isna(val) else val
+
+# 4. Number फॉर्मेट (2 दशमलव)
+for col_name in ['Quantity*', 'Free Quantity', 'MRP', 'Rate per Unit (Without GST)',
+                 'Discount 1', 'Discount 2', 'GST %']:
+    if col_name in col_map:
+        col_idx = col_map[col_name]
+        for row in range(2, ws.max_row+1):
+            cell = ws.cell(row=row, column=col_idx)
+            if isinstance(cell.value, (int, float)):
+                cell.number_format = numbers.FORMAT_NUMBER_00
+
+# 5. Date फॉर्मेट (dd/mm/yyyy)
+for col_name in ['Credit Note Date*', 'Original Invoice Date']:
+    if col_name in col_map:
+        col_idx = col_map[col_name]
+        for row in range(2, ws.max_row+1):
+            cell = ws.cell(row=row, column=col_idx)
+            if isinstance(cell.value, pd.Timestamp):
+                cell.value = cell.value.to_pydatetime()
+                cell.number_format = 'dd/mm/yyyy'
+
+wb.save(output_file)
+print(f"✅ फ़ाइल बन गई: {output_file}")

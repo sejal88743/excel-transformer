@@ -1,0 +1,191 @@
+
+2026-06-24 12:56:50.23
+ba8d0986
+System
+healthcheck failed error=healthcheck /: Get "http://127.0.0.1:1104/": dial tcp 127.0.0.1:1104: connect: connection refused
+
+2026-06-24 12:56:50.24
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+
+2026-06-24 12:56:50.25
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.29
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.32
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.38
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.45
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.56
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.76
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.81
+ba8d0986
+User
+error: Module not found ".output/server/index.mjs"
+
+2026-06-24 12:56:50.84
+ba8d0986
+System
+command finished with error [bun run .output/server/index.mjs]: exit status 1
+
+2026-06-24 12:56:50.87
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:50.87
+ba8d0986
+User
+error: Module not found ".output/server/index.mjs"
+
+2026-06-24 12:56:50.96
+ba8d0986
+System
+command finished with error [bun run .output/server/index.mjs]: exit status 1
+
+2026-06-24 12:56:51.74
+ba8d0986
+System
+command finished with error [bun run .output/server/index.mjs]: exit status 1
+
+2026-06-24 12:56:52.82
+ba8d0986
+User
+error: Module not found ".output/server/index.mjs"
+
+2026-06-24 12:56:52.82
+ba8d0986
+System
+command finished with error [bun run .output/server/index.mjs]: exit status 1
+
+2026-06-24 12:56:58.40
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:56:59.33
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:00.12
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:01.03
+ba8d0986
+User
+error: Module not found ".output/server/index.mjs"
+
+2026-06-24 12:57:01.03
+ba8d0986
+System
+command finished with error [bun run .output/server/index.mjs]: exit status 1
+
+2026-06-24 12:57:01.85
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:02.03
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:03.67
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:05.17
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:05.20
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:05.96
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:06.18
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:07.21
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:07.65
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:08.38
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:09.70
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:09.98
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:10.08
+ba8d0986
+System
+crash loop detected
+
+2026-06-24 12:57:10.22
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:10.52
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500
+
+2026-06-24 12:57:12.00
+ba8d0986
+System
+healthcheck failed error=healthcheck / returned status 500

@@ -1,0 +1,69 @@
+gravatar.com/avatar/7391980a62497e22001f1a007f4e3ab5a16025937eb7884107292d25e429f624?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+gravatar.com/avatar/7391980a62497e22001f1a007f4e3ab5a16025937eb7884107292d25e429f624?d=404:1  Failed to load resource: the server responded with a status of 404 ()
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+2 [vite] Failed to reload /src/routes/index.tsx?tsr-split=component. This could be due to syntax errors or importing non-existent modules. (see errors above)
+(anonymous) @ injected.js:37
+ [vite] server connection lost. Polling for restart...
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+4injected.js:37 TypeError: Failed to fetch dynamically imported module: https://67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/routes/index.tsx?t=1782112224171&tsr-split=component
+(anonymous) @ injected.js:37
+injected.js:37 %o
+
+%s
+
+%s
+ TypeError: Failed to fetch dynamically imported module: https://67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/routes/index.tsx?t=1782112224171&tsr-split=component The above error occurred in the <Lazy> component. React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundaryImpl.
+(anonymous) @ injected.js:37
+injected.js:37 Warning: Error in route match: __root__/
+(anonymous) @ injected.js:37
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts?t=1782112285496:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts?t=1782112285496:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+4injected.js:37 TypeError: Failed to fetch dynamically imported module: https://67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/routes/index.tsx?t=1782112285496&tsr-split=component
+(anonymous) @ injected.js:37
+injected.js:37 %o
+
+%s
+
+%s
+ TypeError: Failed to fetch dynamically imported module: https://67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/routes/index.tsx?t=1782112285496&tsr-split=component The above error occurred in the <Lazy> component. React will try to recreate this component tree from scratch using the error boundary you provided, CatchBoundaryImpl.
+(anonymous) @ injected.js:37
+injected.js:37 Warning: Error in route match: __root__/
+(anonymous) @ injected.js:37
+67981506-4fd2-4f89-82c0-63d4b76121a3-00-2l6t3wby65j48.pike.replit.dev/src/lib/template-filler.ts?t=1782112293520:1  Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+injected.js:37 Bad uncompressed size: 1052 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 585 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 183 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 432 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 137 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 1685 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 367 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 563 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 9682352 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 1052 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 585 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 183 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 432 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 137 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 1685 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 367 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 563 != 0
+(anonymous) @ injected.js:37
+injected.js:37 Bad uncompressed size: 9682352 != 0
+(anonymous) @ injected.js:37

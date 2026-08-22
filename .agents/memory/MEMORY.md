@@ -1,0 +1,2 @@
+- [LeverEdge Sales Register column names](leverEdge-sales-register-columns.md) — BillRefNo is the bill number column; Ushop Redemption col 42, Shikhar Scheme col 46; header at row index 12.
+- [Tally 7.2 CSV voucher export structure](tally-csv-voucher-structure.md) — ledger-line export with no item/HSN/broker data; classify lines by Account Code pattern, not by position.

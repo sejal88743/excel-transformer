@@ -1,0 +1,244 @@
+import pandas as pd
+from datetime import datetime
+import os
+
+# Load the source Excel file
+source_file = 'LeverEDGE_10C711_Product_Wise_Purchase_2026062310312931293129.xlsx'
+target_template = 'purchase_item_import.xlsx'
+
+# Read the source data - skip first 7 rows and last row (grand total)
+df = pd.read_excel(source_file, sheet_name='Product Wise Purchase', skiprows=7)
+
+# Remove the last row (grand total)
+df = df.iloc[:-1]
+
+# Get column references
+# Column names from the source file
+supplier_name_col = 'Supplier Name'
+supplier_invoice_col = 'Supplier Invoice No'
+invoice_number_col = 'Invoice Number'
+invoice_date_col = 'Invoice Date'
+item_name_col = 'Item Name'
+hsn_code_col = 'HSN Code'
+pack_size_col = 'Pack Size'
+upc_col = 'UPC'
+mrp_col = 'MRP'
+purchase_qty_col = 'Purchase Qty Units'
+invoice_price_col = 'Invoice(Price/Case)'
+cgst_percent_col = 'CGST %'
+sgst_percent_col = 'SGST %'
+igst_percent_col = 'IGST %'
+cgst_amt_col = 'CGST Amt'
+sgst_amt_col = 'SGST Amt'
+igst_amt_col = 'IGST Amt'
+oth_disc_col = 'OthDisc'
+oth_adj_col = 'OthAdj'
+freight_col = 'Freight'
+net_amt_col = 'NetAmt'
+batch_code_col = 'Batch Code'
+expiry_date_col = 'Expiry Date'
+
+# Create the target dataframe with all required columns
+target_df = pd.DataFrame()
+
+# Mandatory fields with direct mapping
+target_df['Voucher Number*'] = ['PURCHASE-{:05d}'.format(i+1) for i in range(len(df))]
+target_df['Voucher Date*'] = pd.to_datetime(df[invoice_date_col]).dt.strftime('%d/%m/%Y')
+target_df['Invoice Number*'] = df[supplier_invoice_col]
+target_df['Invoice Date*'] = pd.to_datetime(df[invoice_date_col]).dt.strftime('%d/%m/%Y')
+target_df['Supplier Name Or Alias Name*'] = df[supplier_name_col]
+
+# Custom fields - leaving empty as per template
+target_df['CF - Party Custom Field Name 1'] = ''
+target_df['CF - Party Custom Field Name 2'] = ''
+target_df['CF - Party Custom Field Name 3'] = ''
+
+# GSTIN - will need to be looked up from master data, keeping empty for now
+target_df['GSTIN'] = ''
+
+# Billing Address
+target_df['Billing Address Line 1'] = ''
+target_df['Billing Address Line 2'] = ''
+target_df['Billing Address Country'] = 'India'
+target_df['Billing Address State'] = ''
+target_df['Billing Address City'] = ''
+target_df['Billing Address Pincode'] = ''
+
+# Dispatch Address - same as billing for simplicity
+target_df['Dispatch Name'] = ''
+target_df['Dispatch GSTIN'] = ''
+target_df['Dispatch Address Line 1'] = ''
+target_df['Dispatch Address Line 2'] = ''
+target_df['Dispatch Address Country'] = 'India'
+target_df['Dispatch Address State'] = ''
+target_df['Dispatch Address City'] = ''
+target_df['Dispatch Address Pincode'] = ''
+
+# Broker details - keeping empty
+target_df['Broker Name'] = ''
+target_df['Brokerage %'] = ''
+target_df['Brokerage On Value'] = ''
+
+# Transport details - keeping empty
+target_df['Transport Name'] = ''
+target_df['Document number'] = ''
+target_df['Document Date'] = ''
+target_df['Vehicle Number'] = ''
+
+# Custom transaction fields
+target_df['CF - Trn. Custom Field Name 1'] = ''
+target_df['CF - Trn. Custom Field Name 2'] = ''
+target_df['CF - Trn. Custom Field Name 3'] = ''
+target_df['CF - Trn. Custom Field Name 4'] = ''
+target_df['CF - Trn. Custom Field Name 5'] = ''
+
+# Item details
+target_df['Item Name Or Alias Name Or SKU*'] = df[item_name_col]
+
+# Item custom fields - keeping empty
+target_df['CF - Item Custom Field Name 1'] = ''
+target_df['CF - Item Custom Field Name 2'] = ''
+target_df['CF - Item Custom Field Name 3'] = ''
+target_df['CF - Item Custom Field Name 4'] = ''
+target_df['CF - Item Custom Field Name 5'] = ''
+
+# Additional description
+target_df['Additional description for Item'] = ''
+
+# Ledger Name - as per requirement
+target_df['Ledger Name'] = 'Purchase'
+
+# Unit - as per requirement
+target_df['Unit'] = 'PCS-PIECES'
+
+# Quantity
+target_df['Quantity*'] = df[purchase_qty_col]
+
+# Free quantity
+target_df['Free Quantity Unit'] = ''
+target_df['Free Quantity'] = df.get('FRMS/Memo Units', 0)
+
+# MRP
+target_df['MRP'] = df[mrp_col]
+
+# Rate per Unit (Without GST) = Invoice(Price/Case) / UPC
+# Handle division by zero or NaN
+rate_per_unit = df[invoice_price_col] / df[upc_col]
+target_df['Rate per Unit (Without GST)'] = rate_per_unit.round(2)
+
+# Discount calculation
+# Discount 1 = OthDisc + OthAdj
+total_discount = df[oth_disc_col] + df[oth_adj_col]
+target_df['Discount 1 Type'] = 'T'  # As per requirement
+target_df['Discount 1'] = total_discount.round(2)
+target_df['Discount 2 Type'] = ''
+target_df['Discount 2'] = ''
+
+# GST details
+target_df['GST %'] = df[cgst_percent_col]  # Using CGST % as main GST rate
+
+# Classification Nature Type - derive from GST rates
+def get_classification(row):
+    if row[cgst_percent_col] > 0 and row[sgst_percent_col] > 0:
+        return 'Intrastate Purchase Taxable'
+    elif row[igst_percent_col] > 0:
+        return 'Interstate Purchase Taxable'
+    else:
+        return 'Intrastate Purchase Exempt'
+
+target_df['Classification Nature Type'] = df.apply(get_classification, axis=1)
+
+# RCM Applicable - default NO
+target_df['RCM Applicable'] = 'NO'
+
+# ITC Applicable - YES if GST > 0
+target_df['ITC Applicable*'] = df[cgst_percent_col].apply(lambda x: 'YES' if x > 0 else 'NO')
+
+# Additional Charges - keeping empty
+target_df['Additional Charges 1 Ledger'] = ''
+target_df['Additional Charges 1 Type'] = ''
+target_df['Additional Charges 1 Amount (Without GST)'] = ''
+target_df['Additional Charges 1 GST %'] = ''
+target_df['Additional Charges 2 Ledger'] = ''
+target_df['Additional Charges 2 Type'] = ''
+target_df['Additional Charges 2 Amount (Without GST)'] = ''
+target_df['Additional Charges 2 GST %'] = ''
+
+# Cess
+target_df['Cess'] = ''
+
+# TCS details
+target_df['TCS Ledger'] = ''
+target_df['TCS Rate'] = ''
+target_df['Taxable Value For TCS'] = df[net_amt_col].round(2)
+
+# Add/less adjustments
+target_df['Add / less 1 Ledger'] = ''
+target_df['Add / less 1 Type'] = ''
+target_df['Add / less 1 Amount'] = ''
+target_df['Add / less 2 Ledger'] = ''
+target_df['Add / less 2 Type'] = ''
+target_df['Add / less 2 Amount'] = ''
+
+# Round off amount
+target_df['Round off Amount'] = ''
+
+# TDS details
+target_df['TDS Ledger'] = ''
+target_df['TDS Rate'] = ''
+target_df['Taxable Value For TDS'] = df[net_amt_col].round(2)
+
+# Note
+target_df['Note'] = ''
+
+# Payment details
+target_df['Payment 1 Ledger'] = ''
+target_df['Payment 1 Date'] = pd.to_datetime(df[invoice_date_col]).dt.strftime('%d/%m/%Y')
+target_df['Payment 1 Amount'] = df[net_amt_col].round(2)
+target_df['Payment 1 Mode'] = 'Credit'
+target_df['Payment 1 Reference Number'] = ''
+
+target_df['Payment 2 Ledger'] = ''
+target_df['Payment 2 Date'] = ''
+target_df['Payment 2 Amount'] = ''
+target_df['Payment 2 Mode'] = ''
+target_df['Payment 2 Reference Number'] = ''
+
+# Load the template to preserve the exact column order
+template_df = pd.read_excel(target_template, sheet_name='Purchase Item', nrows=0)
+
+# Ensure all columns from template exist in target_df
+for col in template_df.columns:
+    if col not in target_df.columns:
+        target_df[col] = ''
+
+# Reorder columns to match template exactly
+target_df = target_df[template_df.columns]
+
+# Save the final file
+output_file = 'purchase_item_import_complete.xlsx'
+with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+    target_df.to_excel(writer, sheet_name='Purchase Item', index=False)
+    
+    # Copy the "Select Option Sheet" from template
+    template_options = pd.read_excel(target_template, sheet_name='Select Option Sheet')
+    template_options.to_excel(writer, sheet_name='Select Option Sheet', index=False)
+
+print(f"✓ File created successfully: {output_file}")
+print(f"✓ Total rows processed: {len(target_df)}")
+print(f"✓ Columns: {len(target_df.columns)}")
+print("\n--- Sample Data (First 5 rows) ---")
+print(target_df[['Voucher Number*', 'Invoice Number*', 'Item Name Or Alias Name Or SKU*', 
+                 'Quantity*', 'Rate per Unit (Without GST)', 'GST %']].head())
+
+# Verify the first few rows
+print("\n--- Verification ---")
+print(f"Rate per Unit calculation sample:")
+sample_idx = 0
+print(f"  Invoice(Price/Case): {df.iloc[sample_idx][invoice_price_col]}")
+print(f"  UPC: {df.iloc[sample_idx][upc_col]}")
+print(f"  Rate per Unit: {target_df.iloc[sample_idx]['Rate per Unit (Without GST)']}")
+print(f"  Discount (OthDisc+OthAdj): {target_df.iloc[sample_idx]['Discount 1']}")
+print(f"  Date format: {target_df.iloc[sample_idx]['Voucher Date*']}")
+
+print("\n✓ Integration complete!")

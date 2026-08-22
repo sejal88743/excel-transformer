@@ -1,0 +1,277 @@
+SALES RETURN → INCOME CREDIT ITEM IMPORT CONVERSION ENGINE
+OBJECTIVE
+
+User ek source Excel upload karega:
+
+LeverEDGE Sales Return Detail Report
+
+Aur system automatically target format generate karega:
+
+Income Credit Item Import.xlsx
+
+Output file ka naam:
+
+SalesReturn_To_CreditNote_Mapped.xlsx
+
+Data loss, row skipping, duplicate generation, rounding error ya GST mismatch bilkul nahi hona chahiye.
+
+DATA ACCURACY RULE
+
+Conversion accuracy:
+
+100.000%
+
+Har source row = exactly 1 output row
+
+Koi row skip nahi hogi.
+
+Koi extra row create nahi hogi.
+
+Grand Total, Summary, Footer rows import nahi karne.
+
+COLUMN MAPPING
+Source Column	Target Column
+SR Number	Credit Note Number*
+Sales Return Date	Credit Note Date*
+Party Name	Customer Name Or Alias Name*
+Bill Number	Original Invoice Number
+Bill Date	Original Invoice Date
+Product Name	Item Name Or Alias Name Or SKU*
+Qty	Quantity*
+Basic Rate	Rate per Unit (Without GST)
+Product MRP	MRP
+GST Calculated	GST %
+Fixed Value	Unit
+UNIT RULE
+
+Har row me:
+
+PCS-PIECES
+
+Store karo.
+
+Example:
+
+PCS-PIECES
+PCS-PIECES
+PCS-PIECES
+
+Koi aur value allow nahi.
+
+RATE COLUMN RULE
+
+Target Column:
+
+Rate per Unit (Without GST)
+
+Source:
+
+Basic Rate
+
+Format:
+
+General
+
+Lekin value:
+
+0.00
+
+2 decimal mandatory.
+
+Example:
+
+15.00
+85.50
+102.25
+
+Scientific notation allow nahi.
+
+DECIMAL FORMAT RULE
+
+Sabhi monetary columns:
+
+0.00
+
+Format me save karo.
+
+Columns:
+
+Quantity*
+MRP
+Rate per Unit (Without GST)
+Taxable Value
+Tax Value
+Net Credit Value
+
+Examples:
+
+1.00
+2.00
+10.00
+
+15.25
+120.50
+999.99
+GST DETECTION ENGINE
+
+GST direct source me available nahi.
+
+Calculate:
+
+GST Rate =
+(Tax Value ÷ Taxable Value) × 100
+
+Result ko nearest GST slab me convert karo.
+
+Allowed slabs:
+
+0
+5
+12
+18
+28
+
+Examples:
+
+5.01 → 5
+4.97 → 5
+
+11.95 → 12
+12.04 → 12
+
+17.91 → 18
+18.07 → 18
+
+Output:
+
+5
+12
+18
+28
+
+Only integer GST slabs.
+
+DATA CLEANING
+
+Remove:
+
+GRAND TOTAL
+SUB TOTAL
+TOTAL
+BLANK ROWS
+FOOTER ROWS
+REPORT GENERATED ROWS
+DATE FORMAT
+
+Convert all dates:
+
+DD/MM/YYYY
+
+Example:
+
+20/06/2026
+ITEM NAME RULE
+
+Use:
+
+Product Name
+
+Never use Product Code.
+
+Never use SKU.
+
+Never use Alias.
+
+Output:
+
+Item Name Or Alias Name Or SKU*
+=
+Product Name
+IMPORT COMPATIBILITY
+
+Output must be compatible with:
+
+Excel
+OpenOffice
+LibreOffice
+Tally Import Utilities
+Custom ERP Import Modules
+GST Software Import Engines
+VALIDATION BEFORE EXPORT
+
+Check:
+
+Validation 1
+Input Rows = Output Rows
+Validation 2
+
+No blank:
+
+Credit Note Number*
+Customer Name*
+Item Name*
+Quantity*
+Validation 3
+
+GST must be:
+
+0
+5
+12
+18
+28
+
+Only.
+
+Validation 4
+
+Unit:
+
+PCS-PIECES
+
+Every row.
+
+Validation 5
+
+Rate column:
+
+General Format
+
+Value displayed:
+
+0.00
+EXPORT
+
+Generate:
+
+SalesReturn_To_CreditNote_Mapped.xlsx
+
+Sheet:
+
+Income Credit Item
+
+No formulas.
+
+No merged cells.
+
+No hidden rows.
+
+No hidden columns.
+
+Only final values.
+
+FINAL SUCCESS MESSAGE
+Import File Generated Successfully
+
+Rows Imported: XXXX
+Rows Exported: XXXX
+
+Validation Passed: YES
+GST Validation: YES
+Unit Validation: YES
+Decimal Validation: YES
+
+Output File Ready:
+SalesReturn_To_CreditNote_Mapped.xlsx
+
+Ye prompt Lovable ya Replit me direct use karoge to conversion engine har baar same mapping aur formatting ke saath file generate karega.
