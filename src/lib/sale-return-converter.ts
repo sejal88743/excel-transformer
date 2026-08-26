@@ -281,6 +281,7 @@ export interface SRConvertResult {
 export function convertSaleReturn(
   sourceBuf: ArrayBuffer,
   discMap?: Map<string, RegisterDiscount> | null,
+  extraHsn?: Map<string, string> | null,
 ): SRConvertResult {
   const wb = XLSX.read(sourceBuf, { type: "array", cellDates: false, cellFormula: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -464,19 +465,22 @@ export function convertSaleReturn(
     row["Brokerage %"]                     = "";
     row["Brokerage On Value"]              = "";
 
-    row["Vehicle Number"]                  = idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "") : "";
+    row["Vehicle Number"]                  = (idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "").trim() : "") || "KATARGAM";
     row["Item Name Or Alias Name Or SKU*"] = product;
 
-    // HSN Code resolution: from uploaded file column, or fallback to Item Master database
+    // HSN Code resolution: uploaded file column → Item Master (local) → cloud/sale-data map
     let hsnCode = idx.hsn >= 0 ? cleanHSN(r[idx.hsn]) : "";
     if (!hsnCode && product) {
       const key = normalizeItemKey(product);
-      const masterEntry = masterMap.get(key) || cleanMasterMap.get(cleanItemKey(product));
-      if (masterEntry?.hsn) {
-        hsnCode = cleanHSN(masterEntry.hsn);
+      const cKey = cleanItemKey(product);
+      const masterEntry = masterMap.get(key) || cleanMasterMap.get(cKey);
+      if (masterEntry?.hsn) hsnCode = cleanHSN(masterEntry.hsn);
+      if (!hsnCode && extraHsn) {
+        hsnCode = cleanHSN(extraHsn.get(key) || extraHsn.get(cKey) || "");
       }
     }
     row["Hsn Code"]                        = hsnCode;
+
 
     row["Ledger Name"]                     = "Sale";
     row["Unit"]                            = "PCS-PIECES";

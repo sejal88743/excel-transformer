@@ -29,8 +29,12 @@ import {
   clearMaster,
   parseExistingItemMaster,
   getNewItemsSummary,
+  normalizeItemName,
+  normalizeItemKey,
+  cleanItemKey,
+  cleanHSN,
 } from "@/lib/item-master";
-import { saveSaleToCloud, saveSaleReturnToCloud, savePurchaseToCloud } from "@/lib/cloud-saver";
+import { saveSaleToCloud, saveSaleReturnToCloud, savePurchaseToCloud, fetchCloudHsnMap } from "@/lib/cloud-saver";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -194,7 +198,17 @@ function Index() {
         await new Promise((r) => setTimeout(r, 30));
         const discMap = srRegDiscMap.current ?? saleRegDiscMap.current;
         const mappedRegName = regName || sale.regFileName || "";
-        const { rows, stats } = convertSaleReturn(srBuf.current, discMap);
+        const hsnMap = await fetchCloudHsnMap();
+        // enrich with HSN present in the currently loaded Sale Data rows
+        const saleDs = datasetStore.getSale();
+        for (const r of saleDs?.rows ?? []) {
+          const nm = normalizeItemName(String(r["Item Name Or Alias Name Or SKU*"] ?? ""));
+          const hsn = cleanHSN(r["Hsn Code"] ?? r["HSN Code"]);
+          if (!nm || !hsn) continue;
+          if (!hsnMap.has(normalizeItemKey(nm))) hsnMap.set(normalizeItemKey(nm), hsn);
+          if (!hsnMap.has(cleanItemKey(nm))) hsnMap.set(cleanItemKey(nm), hsn);
+        }
+        const { rows, stats } = convertSaleReturn(srBuf.current, discMap, hsnMap);
         datasetStore.setReturn(rows, srName);
         srBlob.current = buildSRWorkbooks(rows);
         setSR({

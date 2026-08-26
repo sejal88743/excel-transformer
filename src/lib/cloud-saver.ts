@@ -1,6 +1,6 @@
 // Saves converted rows to Cloud if configured. Duplicates (bill_no + item + date) are skipped.
 import { supabase, isSupabaseConfigured } from "@/integrations/supabase/client";
-import { normalizeItemName, normalizeItemKey, cleanHSN } from "@/lib/item-master";
+import { normalizeItemName, normalizeItemKey, cleanItemKey, cleanHSN } from "@/lib/item-master";
 
 type Row = Record<string, unknown>;
 
@@ -183,4 +183,24 @@ export async function savePurchaseToCloud(rows: Row[]) {
     upsertUniqueNames("items", Array.from(items.values()), true),
   ]);
   return insertLines("purchase_lines", lines, "invoice_no,item_name,invoice_date");
+}
+
+/** HSN lookup map built from the cloud `items` table (item key → HSN). */
+export async function fetchCloudHsnMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!isSupabaseConfigured) return map;
+  try {
+    const { data, error } = await supabase.from("items").select("name,hsn").not("hsn", "is", null).limit(20000);
+    if (error || !data) return map;
+    for (const it of data as { name: string; hsn: string | null }[]) {
+      const hsn = cleanHSN(it.hsn);
+      if (!hsn || !it.name) continue;
+      const name = normalizeItemName(it.name);
+      map.set(normalizeItemKey(name), hsn);
+      map.set(cleanItemKey(name), hsn);
+    }
+  } catch {
+    // offline — fall back to local item master only
+  }
+  return map;
 }
