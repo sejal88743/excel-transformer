@@ -367,11 +367,11 @@ export function mergeSameItemRowsInBill(
           primary["Free Quantity"] = totalFreeQty;
         }
         if (totalDisc1 > 0) {
-          primary["Discount 1 Type"] = "T";
+          primary["Discount 1 Type"] = "₹";
           primary["Discount 1"] = Math.round(totalDisc1 * 100) / 100;
         }
         if (totalDisc2 > 0) {
-          primary["Discount 2 Type"] = "T";
+          primary["Discount 2 Type"] = "₹";
           primary["Discount 2"] = Math.round(totalDisc2 * 100) / 100;
         }
         if (maxMrp > 0) {

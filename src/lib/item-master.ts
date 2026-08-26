@@ -4,20 +4,27 @@
 import * as XLSX from "xlsx";
 
 export const ITEM_MASTER_HEADERS = [
-  "Item Name",
+  "Item Name*",
   "Alias Name",
   "Print Item Name",
   "Item Category",
-  "Primary Unit Of Measurement",
-  "Primary Unit of Conversion Rate",
-  "Secondary Unit Of Measurement",
+  "Primary Unit of Measurement*",
+  "Primary Unit  of Conversion Rate",
+  "Secondary Unit of Measurement",
   "Secondary Unit of Conversion Rate",
+  "Tertiary Unit of Measurement",
+  "Tertiary Unit of Conversion Rate",
   "Decimal Places",
   "SKU/Barcode",
   "Description",
   "Re Order Level",
   "Re Order UOM",
-  "GST Applicable",
+  "CF - Item Custom Field 1",
+  "CF - Item Custom Field 2",
+  "CF - Item Custom Field 3",
+  "CF - Item Custom Field 4",
+  "CF - Item Custom Field 5",
+  "GST Applicable*",
   "GST Rate",
   "HSN Code",
   "GST Cess Rate",
@@ -29,6 +36,8 @@ export const ITEM_MASTER_HEADERS = [
   "Selling Price",
   "Secondary Unit Selling Price Type",
   "Secondary Unit Selling Price",
+  "Tertiary Unit Selling Price Type",
+  "Tertiary Unit Selling Price",
   "Income Ledger To Be Associated",
   "Discount Type",
   "Discount Value",
@@ -38,8 +47,6 @@ export const ITEM_MASTER_HEADERS = [
   "Purchase Discount Value",
   "Expense Ledger To Be Associated",
   "Decimal Places For Rate",
-  "Last Sale Price",
-  "Last Purchase Price",
   "Opening Quantity Unit of Measurement",
   "Opening Quantity",
   "Opening Rate (Without GST)",
@@ -47,6 +54,8 @@ export const ITEM_MASTER_HEADERS = [
 
 export interface ItemMasterEntry {
   name: string;
+  alias?: string;
+  sku?: string;
   hsn: string;
   gstRate: number;
   mrp: number;
@@ -89,13 +98,42 @@ function num(v: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
+let memoryStore: string | null = null;
+
+function getStorageItem(key: string): string | null {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+  } catch {}
+  return memoryStore;
+}
+
+function setStorageItem(key: string, value: string): void {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {}
+  memoryStore = value;
+}
+
+function removeStorageItem(key: string): void {
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {}
+  memoryStore = null;
+}
+
 /**
  * Load master items from localStorage.
  * Automatically cleans and deduplicates any previously stored entries by normalized item key.
  */
 export function loadMaster(): Map<string, ItemMasterEntry> {
   try {
-    const raw = localStorage.getItem(LS_KEY);
+    const raw = getStorageItem(LS_KEY);
     if (!raw) return new Map();
     const arr: ItemMasterEntry[] = JSON.parse(raw);
     const map = new Map<string, ItemMasterEntry>();
@@ -110,6 +148,8 @@ export function loadMaster(): Map<string, ItemMasterEntry> {
       if (!existing) {
         map.set(key, {
           name: cleanName,
+          alias: typeof e.alias === "string" ? e.alias.trim() : "",
+          sku: typeof e.sku === "string" ? e.sku.trim() : "",
           hsn: cleanHSN(e.hsn ?? ""),
           gstRate: num(e.gstRate),
           mrp: num(e.mrp),
@@ -121,6 +161,8 @@ export function loadMaster(): Map<string, ItemMasterEntry> {
       } else {
         hadDuplicates = true;
         // Merge missing attributes into existing unique item
+        if (!existing.alias && e.alias) existing.alias = String(e.alias).trim();
+        if (!existing.sku && e.sku) existing.sku = String(e.sku).trim();
         if (!existing.hsn && e.hsn) existing.hsn = cleanHSN(e.hsn);
         if (!existing.gstRate && e.gstRate) existing.gstRate = num(e.gstRate);
         if (!existing.mrp && e.mrp) existing.mrp = num(e.mrp);
@@ -157,6 +199,8 @@ export function saveMaster(map: Map<string, ItemMasterEntry>) {
       seen.add(key);
       uniqueList.push({
         name: cleanName,
+        alias: typeof e.alias === "string" ? e.alias.trim() : "",
+        sku: typeof e.sku === "string" ? e.sku.trim() : "",
         hsn: cleanHSN(e.hsn),
         gstRate: num(e.gstRate),
         mrp: num(e.mrp),
@@ -167,12 +211,12 @@ export function saveMaster(map: Map<string, ItemMasterEntry>) {
       });
     }
 
-    localStorage.setItem(LS_KEY, JSON.stringify(uniqueList));
+    setStorageItem(LS_KEY, JSON.stringify(uniqueList));
   } catch {}
 }
 
 export function clearMaster() {
-  try { localStorage.removeItem(LS_KEY); } catch {}
+  try { removeStorageItem(LS_KEY); } catch {}
 }
 
 interface MergeCandidate {
@@ -599,42 +643,49 @@ export function buildItemMasterWorkbook(excludeNames?: Set<string>): {
     const row: Record<string, unknown> = {};
     for (const h of ITEM_MASTER_HEADERS) row[h] = "";
 
-    row["Item Name"] = sanitizedEntry.name;
-    row["Alias Name"] = "";
+    row["Item Name*"] = sanitizedEntry.name;
+    row["Alias Name"] = sanitizedEntry.alias || "";
     row["Print Item Name"] = "";
     row["Item Category"] = "GOODS";
-    row["Primary Unit Of Measurement"] = "PCS-PIECES";
-    row["Primary Unit of Conversion Rate"] = "";
-    row["Secondary Unit Of Measurement"] = "";
+    row["Primary Unit of Measurement*"] = "PCS-PIECES";
+    row["Primary Unit  of Conversion Rate"] = "";
+    row["Secondary Unit of Measurement"] = "";
     row["Secondary Unit of Conversion Rate"] = "";
+    row["Tertiary Unit of Measurement"] = "";
+    row["Tertiary Unit of Conversion Rate"] = "";
     row["Decimal Places"] = 2;
-    row["SKU/Barcode"] = "";
+    row["SKU/Barcode"] = sanitizedEntry.sku || "";
     row["Description"] = sanitizedEntry.description || "";
     row["Re Order Level"] = "";
     row["Re Order UOM"] = "";
-    row["GST Applicable"] = "Yes";
-    row["GST Rate"] = sanitizedEntry.gstRate;
-    row["HSN Code"] = sanitizedEntry.hsn;
+    row["CF - Item Custom Field 1"] = "";
+    row["CF - Item Custom Field 2"] = "";
+    row["CF - Item Custom Field 3"] = "";
+    row["CF - Item Custom Field 4"] = "";
+    row["CF - Item Custom Field 5"] = "";
+    row["GST Applicable*"] = "Yes";
+    row["GST Rate"] = sanitizedEntry.gstRate || "";
+    row["HSN Code"] = sanitizedEntry.hsn || "";
     row["GST Cess Rate"] = "";
     row["RCM Applicable"] = "No";
-    row["MRP"] = sanitizedEntry.mrp;
+    row["MRP"] = sanitizedEntry.mrp || "";
     row["MRP Discount Type"] = "₹";
     row["MRP Discount Value"] = 0;
     row["Selling Price Type"] = "Without GST";
-    row["Selling Price"] = 0;
+    row["Selling Price"] = sanitizedEntry.lastSalePrice || 0;
     row["Secondary Unit Selling Price Type"] = "Without GST";
     row["Secondary Unit Selling Price"] = "";
+    row["Tertiary Unit Selling Price Type"] = "Without GST";
+    row["Tertiary Unit Selling Price"] = "";
     row["Income Ledger To Be Associated"] = "Sale";
     row["Discount Type"] = "₹";
     row["Discount Value"] = 0;
     row["Purchase Price Type"] = "Without GST";
-    row["Purchase Price"] = sanitizedEntry.purchasePrice;
+    row["Purchase Price"] = sanitizedEntry.purchasePrice || (sanitizedEntry.lastPurchasePrice || 0);
     row["Purchase Discount Type"] = "₹";
     row["Purchase Discount Value"] = 0;
     row["Expense Ledger To Be Associated"] = "Purchase";
     row["Decimal Places For Rate"] = 4;
-    row["Last Sale Price"] = sanitizedEntry.lastSalePrice ?? 0;
-    row["Last Purchase Price"] = sanitizedEntry.lastPurchasePrice || sanitizedEntry.purchasePrice || 0;
     row["Opening Quantity Unit of Measurement"] = "PCS-PIECES";
     row["Opening Quantity"] = 0;
     row["Opening Rate (Without GST)"] = 0;
@@ -643,7 +694,7 @@ export function buildItemMasterWorkbook(excludeNames?: Set<string>): {
 
   const ws = XLSX.utils.aoa_to_sheet(data);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Worksheet");
+  XLSX.utils.book_append_sheet(wb, ws, "Item");
   const buffer = XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
 
   return {
@@ -651,5 +702,104 @@ export function buildItemMasterWorkbook(excludeNames?: Set<string>): {
     totalExported: exportedItems.length,
     excludedCount,
     exportedItems,
+  };
+}
+
+export function buildItemMasterCSV(excludeNames?: Set<string>): {
+  csv: string;
+  totalExported: number;
+  excludedCount: number;
+} {
+  const map = loadMaster();
+  const data: unknown[][] = [ITEM_MASTER_HEADERS];
+  let excludedCount = 0;
+  const exportedItems: ItemMasterEntry[] = [];
+  const seenExportKeys = new Set<string>();
+
+  for (const e of map.values()) {
+    const cleanName = normalizeItemName(e.name);
+    if (!cleanName) continue;
+    const key = normalizeItemKey(cleanName);
+
+    if (seenExportKeys.has(key)) continue;
+
+    if (isItemExcluded(cleanName, excludeNames)) {
+      excludedCount++;
+      continue;
+    }
+
+    seenExportKeys.add(key);
+    const sanitizedEntry: ItemMasterEntry = {
+      ...e,
+      name: cleanName,
+      hsn: cleanHSN(e.hsn),
+      gstRate: num(e.gstRate),
+      mrp: num(e.mrp),
+      purchasePrice: num(e.purchasePrice),
+      lastSalePrice: num(e.lastSalePrice),
+      lastPurchasePrice: num(e.lastPurchasePrice || e.purchasePrice),
+      description: typeof e.description === "string" ? e.description.trim() : "",
+    };
+    exportedItems.push(sanitizedEntry);
+
+    const row: Record<string, unknown> = {};
+    for (const h of ITEM_MASTER_HEADERS) row[h] = "";
+
+    row["Item Name*"] = sanitizedEntry.name;
+    row["Alias Name"] = sanitizedEntry.alias || "";
+    row["Print Item Name"] = "";
+    row["Item Category"] = "GOODS";
+    row["Primary Unit of Measurement*"] = "PCS-PIECES";
+    row["Primary Unit  of Conversion Rate"] = "";
+    row["Secondary Unit of Measurement"] = "";
+    row["Secondary Unit of Conversion Rate"] = "";
+    row["Tertiary Unit of Measurement"] = "";
+    row["Tertiary Unit of Conversion Rate"] = "";
+    row["Decimal Places"] = 2;
+    row["SKU/Barcode"] = sanitizedEntry.sku || "";
+    row["Description"] = sanitizedEntry.description || "";
+    row["Re Order Level"] = "";
+    row["Re Order UOM"] = "";
+    row["CF - Item Custom Field 1"] = "";
+    row["CF - Item Custom Field 2"] = "";
+    row["CF - Item Custom Field 3"] = "";
+    row["CF - Item Custom Field 4"] = "";
+    row["CF - Item Custom Field 5"] = "";
+    row["GST Applicable*"] = "Yes";
+    row["GST Rate"] = sanitizedEntry.gstRate || "";
+    row["HSN Code"] = sanitizedEntry.hsn || "";
+    row["GST Cess Rate"] = "";
+    row["RCM Applicable"] = "No";
+    row["MRP"] = sanitizedEntry.mrp || "";
+    row["MRP Discount Type"] = "₹";
+    row["MRP Discount Value"] = 0;
+    row["Selling Price Type"] = "Without GST";
+    row["Selling Price"] = sanitizedEntry.lastSalePrice || 0;
+    row["Secondary Unit Selling Price Type"] = "Without GST";
+    row["Secondary Unit Selling Price"] = "";
+    row["Tertiary Unit Selling Price Type"] = "Without GST";
+    row["Tertiary Unit Selling Price"] = "";
+    row["Income Ledger To Be Associated"] = "Sale";
+    row["Discount Type"] = "₹";
+    row["Discount Value"] = 0;
+    row["Purchase Price Type"] = "Without GST";
+    row["Purchase Price"] = sanitizedEntry.purchasePrice || (sanitizedEntry.lastPurchasePrice || 0);
+    row["Purchase Discount Type"] = "₹";
+    row["Purchase Discount Value"] = 0;
+    row["Expense Ledger To Be Associated"] = "Purchase";
+    row["Decimal Places For Rate"] = 4;
+    row["Opening Quantity Unit of Measurement"] = "PCS-PIECES";
+    row["Opening Quantity"] = 0;
+    row["Opening Rate (Without GST)"] = 0;
+    data.push(ITEM_MASTER_HEADERS.map((h) => row[h]));
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const csv = XLSX.utils.sheet_to_csv(ws);
+
+  return {
+    csv,
+    totalExported: exportedItems.length,
+    excludedCount,
   };
 }

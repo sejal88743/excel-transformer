@@ -14,9 +14,9 @@ export const SR_OUTPUT_HEADERS = [
   "CF - Trn. Custom Field Name 1","CF - Trn. Custom Field Name 2","CF - Trn. Custom Field Name 3","CF - Trn. Custom Field Name 4","CF - Trn. Custom Field Name 5",
   "Item Name Or Alias Name Or SKU*",
   "CF - Item Custom Field Name 1","CF - Item Custom Field Name 2","CF - Item Custom Field Name 3","CF - Item Custom Field Name 4","CF - Item Custom Field Name 5",
-  "Additional description for Item","Ledger Name","Hsn Code","Unit",
+  "Additional description for Item","Ledger Name","Unit",
   "Quantity*","Free Quantity Unit","Free Quantity",
-  "MRP","Rate per Unit (Without GST)*",
+  "MRP","Rate per Unit (Without GST)",
   "Discount 1 Type","Discount 1","Discount 2 Type","Discount 2",
   "GST %","Classification Nature Type","RCM Applicable",
   "Additional Charges 1 Ledger","Additional Charges 1 Type","Additional Charges 1 Amount (Without GST)","Additional Charges 1 GST %",
@@ -386,12 +386,8 @@ export function convertSaleReturn(
 
     row["Vehicle Number"]                  = idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "") : "";
     row["Item Name Or Alias Name Or SKU*"] = product;
-    const hsnVal                           = idx.hsn >= 0 ? cleanHSN(r[idx.hsn]) : "";
-    if (hsnVal) {
-      row["Hsn Code"]                      = hsnVal;
-    }
     row["Ledger Name"]                     = "Sale";
-    row["Unit"]                            = "";
+    row["Unit"]                            = "PCS-PIECES";
     row["Quantity*"]                       = absQty;
     row["Free Quantity Unit"]              = "";
     row["Free Quantity"]                   = "";
@@ -409,9 +405,9 @@ export function convertSaleReturn(
     if (ratePerUnit <= 0 && idx.mrp >= 0 && num(r[idx.mrp]) > 0) ratePerUnit = Math.abs(num(r[idx.mrp]));
     if (ratePerUnit <= 0) ratePerUnit = 0.01;
 
-    row["Rate per Unit (Without GST)*"]    = ratePerUnit;
+    row["Rate per Unit (Without GST)"]     = ratePerUnit;
     if (totalDisc > 0) {
-      row["Discount 1 Type"]               = "T";
+      row["Discount 1 Type"]               = "₹";
       row["Discount 1"]                    = totalDisc;
     } else {
       row["Discount 1 Type"]               = "";
@@ -421,6 +417,7 @@ export function convertSaleReturn(
     row["Discount 2"]                      = "";
     row["GST %"]                           = gstPct || "";
     row["Classification Nature Type"]      = "Intrastate Sales Taxable";
+    row["RCM Applicable"]                  = "";
 
     out.push(row);
   });
@@ -534,7 +531,7 @@ function applyNumFormats(ws: XLSX.WorkSheet, numDataRows: number) {
     }
   }
   // Rate per Unit — 4 decimal places, General number type
-  const rateCol = SR_OUTPUT_HEADERS.indexOf("Rate per Unit (Without GST)*");
+  const rateCol = SR_OUTPUT_HEADERS.indexOf("Rate per Unit (Without GST)");
   if (rateCol >= 0) {
     for (let row = 1; row <= numDataRows; row++) {
       const addr = XLSX.utils.encode_cell({ r: row, c: rateCol });
