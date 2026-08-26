@@ -281,6 +281,7 @@ export interface SRConvertResult {
 export function convertSaleReturn(
   sourceBuf: ArrayBuffer,
   discMap?: Map<string, RegisterDiscount> | null,
+  extraHsn?: Map<string, string> | null,
 ): SRConvertResult {
   const wb = XLSX.read(sourceBuf, { type: "array", cellDates: false, cellFormula: false });
   const ws = wb.Sheets[wb.SheetNames[0]];
