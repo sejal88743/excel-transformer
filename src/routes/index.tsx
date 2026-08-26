@@ -29,8 +29,12 @@ import {
   clearMaster,
   parseExistingItemMaster,
   getNewItemsSummary,
+  normalizeItemName,
+  normalizeItemKey,
+  cleanItemKey,
+  cleanHSN,
 } from "@/lib/item-master";
-import { saveSaleToCloud, saveSaleReturnToCloud, savePurchaseToCloud } from "@/lib/cloud-saver";
+import { saveSaleToCloud, saveSaleReturnToCloud, savePurchaseToCloud, fetchCloudHsnMap } from "@/lib/cloud-saver";
 
 export const Route = createFileRoute("/")({
   head: () => ({
