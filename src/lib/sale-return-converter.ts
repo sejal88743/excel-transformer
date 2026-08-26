@@ -465,7 +465,7 @@ export function convertSaleReturn(
     row["Brokerage %"]                     = "";
     row["Brokerage On Value"]              = "";
 
-    row["Vehicle Number"]                  = idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "") : "";
+    row["Vehicle Number"]                  = (idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "").trim() : "") || "KATARGAM";
     row["Item Name Or Alias Name Or SKU*"] = product;
 
     // HSN Code resolution: uploaded file column → Item Master (local) → cloud/sale-data map
