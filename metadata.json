@@ -1,6 +1,6 @@
 {
   "name": "Excel Transformer",
-  "description": "Convert Sale Data & Sales Return Excel files to import-ready format with matching and verification.",
+  "description": "Convert Sale Data, Sales Return & Purchase Excel files with Item Master database export for Tally and Suvit.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

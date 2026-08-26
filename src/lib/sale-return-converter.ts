@@ -1,33 +1,105 @@
 import * as XLSX from "xlsx";
 import { type RegisterDiscount, normBillNo, lookupDiscount, mergeSameItemRowsInBill } from "@/lib/sale-converter";
+import { loadMaster, normalizeItemKey, cleanItemKey } from "@/lib/item-master";
 
 export const SR_OUTPUT_HEADERS = [
-  "Credit Note Number*","Credit Note Date*","Customer Name Or Alias Name*",
-  "CF - Party Custom Field Name 1","CF - Party Custom Field Name 2","CF - Party Custom Field Name 3",
-  "Original Invoice Number","Original Invoice Date",
-  "Country Code For Mobile Number","Mobile Number","GSTIN",
-  "Billing Address Line 1","Billing Address Line 2","Billing Address Country","Billing Address State","Billing Address City","Billing Address Pincode",
-  "Shipping Name","Shipping GSTIN","Shipping Address Line 1","Shipping Address Line 2","Shipping Address Country","Shipping Address State","Shipping Address City","Shipping Address Pincode",
-  "Broker Name","Brokerage %","Brokerage On Value",
-  "Transport Name","Document number","Document Date","Vehicle Number",
-  "PO No.","PO Date","Credit Period","Credit Period Type",
-  "CF - Trn. Custom Field Name 1","CF - Trn. Custom Field Name 2","CF - Trn. Custom Field Name 3","CF - Trn. Custom Field Name 4","CF - Trn. Custom Field Name 5",
+  "Credit Note Number*",
+  "Credit Note Date*",
+  "Customer Name Or Alias Name*",
+  "CF - Party Custom Field Name 1",
+  "CF - Party Custom Field Name 2",
+  "CF - Party Custom Field Name 3",
+  "Original Invoice Number",
+  "Original Invoice Date",
+  "Country Code For Mobile Number",
+  "Mobile Number",
+  "GSTIN",
+  "Billing Address Line 1",
+  "Billing Address Line 2",
+  "Billing Address Country",
+  "Billing Address State",
+  "Billing Address City",
+  "Billing Address Pincode",
+  "Shipping Name",
+  "Shipping GSTIN",
+  "Shipping Address Line 1",
+  "Shipping Address Line 2",
+  "Shipping Address Country",
+  "Shipping Address State",
+  "Shipping Address City",
+  "Shipping Address Pincode",
+  "Broker Name",
+  "Brokerage %",
+  "Brokerage On Value",
+  "Transport Name",
+  "Document number",
+  "Document Date",
+  "Vehicle Number",
+  "PO No.",
+  "PO Date",
+  "Credit Period",
+  "Credit Period Type",
+  "CF - Trn. Custom Field Name 1",
+  "CF - Trn. Custom Field Name 2",
+  "CF - Trn. Custom Field Name 3",
+  "CF - Trn. Custom Field Name 4",
+  "CF - Trn. Custom Field Name 5",
   "Item Name Or Alias Name Or SKU*",
-  "CF - Item Custom Field Name 1","CF - Item Custom Field Name 2","CF - Item Custom Field Name 3","CF - Item Custom Field Name 4","CF - Item Custom Field Name 5",
-  "Additional description for Item","Ledger Name","Unit",
-  "Quantity*","Free Quantity Unit","Free Quantity",
-  "MRP","Rate per Unit (Without GST)",
-  "Discount 1 Type","Discount 1","Discount 2 Type","Discount 2",
-  "GST %","Classification Nature Type","RCM Applicable",
-  "Additional Charges 1 Ledger","Additional Charges 1 Type","Additional Charges 1 Amount (Without GST)","Additional Charges 1 GST %",
-  "Additional Charges 2 Ledger","Additional Charges 2 Type","Additional Charges 2 Amount (Without GST)","Additional Charges 2 GST %",
-  "Cess","TCS Ledger","TCS Rate","Taxable Value For TCS",
-  "Add / less 1 Ledger","Add / less 1 Type","Add / less 1 Amount",
-  "Add / less 2 Ledger","Add / less 2 Type","Add / less 2 Amount",
-  "Round off Amount","TDS Ledger","TDS Rate","Taxable Value For TDS",
-  "Note","Terms & Conditions",
-  "Payment 1 Ledger","Payment 1 Date","Payment 1 Amount","Payment 1 Mode","Payment 1 Reference Number",
-  "Payment 2 Ledger","Payment 2 Date","Payment 2 Amount","Payment 2 Mode","Payment 2 Reference Number",
+  "CF - Item Custom Field Name 1",
+  "CF - Item Custom Field Name 2",
+  "CF - Item Custom Field Name 3",
+  "CF - Item Custom Field Name 4",
+  "CF - Item Custom Field Name 5",
+  "Additional description for Item",
+  "Ledger Name",
+  "Hsn Code",
+  "Unit",
+  "Quantity*",
+  "Free Quantity Unit",
+  "Free Quantity",
+  "MRP",
+  "Rate per Unit (Without GST)*",
+  "Discount 1 Type",
+  "Discount 1",
+  "Discount 2 Type",
+  "Discount 2",
+  "GST %",
+  "Classification Nature Type",
+  "RCM Applicable",
+  "Additional Charges 1 Ledger",
+  "Additional Charges 1 Type",
+  "Additional Charges 1 Amount (Without GST)",
+  "Additional Charges 1 GST %",
+  "Additional Charges 2 Ledger",
+  "Additional Charges 2 Type",
+  "Additional Charges 2 Amount (Without GST)",
+  "Additional Charges 2 GST %",
+  "Cess",
+  "TCS Ledger",
+  "TCS Rate",
+  "Taxable Value For TCS",
+  "Add / less 1 Ledger",
+  "Add / less 1 Type",
+  "Add / less 1 Amount",
+  "Add / less 2 Ledger",
+  "Add / less 2 Type",
+  "Add / less 2 Amount",
+  "Round off Amount",
+  "TDS Ledger",
+  "TDS Rate",
+  "Taxable Value For TDS",
+  "Note",
+  "Terms & Conditions",
+  "Payment 1 Ledger",
+  "Payment 1 Date",
+  "Payment 1 Amount",
+  "Payment 1 Mode",
+  "Payment 1 Reference Number",
+  "Payment 2 Ledger",
+  "Payment 2 Date",
+  "Payment 2 Amount",
+  "Payment 2 Mode",
+  "Payment 2 Reference Number",
 ];
 
 const SR_ALIASES: Record<string, string[]> = {
@@ -297,6 +369,16 @@ export function convertSaleReturn(
   if (missing.length)
     throw new Error("Missing columns in Sale Return: " + missing.map((k) => `${k} (tried: ${SR_ALIASES[k].join(", ")})`).join("; "));
 
+  // Fast index Item Master for HSN and metadata fallback
+  const masterMap = loadMaster();
+  const cleanMasterMap = new Map<string, { hsn?: string }>();
+  for (const entry of masterMap.values()) {
+    const cKey = cleanItemKey(entry.name);
+    if (cKey && !cleanMasterMap.has(cKey)) {
+      cleanMasterMap.set(cKey, entry);
+    }
+  }
+
   const errors: { row: number; reason: string }[] = [];
   const out: Record<string, unknown>[] = [];
 
@@ -379,13 +461,23 @@ export function convertSaleReturn(
     row["Shipping Address City"]           = "SURAT";
 
     row["Broker Name"]                     = salesperson;
-    if (salesperson) {
-      row["Brokerage %"]                   = 0;
-      row["Brokerage On Value"]            = "Invoice Value";
-    }
+    row["Brokerage %"]                     = "";
+    row["Brokerage On Value"]              = "";
 
     row["Vehicle Number"]                  = idx.vehicle >= 0 ? String(r[idx.vehicle] ?? "") : "";
     row["Item Name Or Alias Name Or SKU*"] = product;
+
+    // HSN Code resolution: from uploaded file column, or fallback to Item Master database
+    let hsnCode = idx.hsn >= 0 ? cleanHSN(r[idx.hsn]) : "";
+    if (!hsnCode && product) {
+      const key = normalizeItemKey(product);
+      const masterEntry = masterMap.get(key) || cleanMasterMap.get(cleanItemKey(product));
+      if (masterEntry?.hsn) {
+        hsnCode = cleanHSN(masterEntry.hsn);
+      }
+    }
+    row["Hsn Code"]                        = hsnCode;
+
     row["Ledger Name"]                     = "Sale";
     row["Unit"]                            = "PCS-PIECES";
     row["Quantity*"]                       = absQty;
@@ -405,7 +497,7 @@ export function convertSaleReturn(
     if (ratePerUnit <= 0 && idx.mrp >= 0 && num(r[idx.mrp]) > 0) ratePerUnit = Math.abs(num(r[idx.mrp]));
     if (ratePerUnit <= 0) ratePerUnit = 0.01;
 
-    row["Rate per Unit (Without GST)"]     = ratePerUnit;
+    row["Rate per Unit (Without GST)*"]    = ratePerUnit;
     if (totalDisc > 0) {
       row["Discount 1 Type"]               = "₹";
       row["Discount 1"]                    = totalDisc;
@@ -416,8 +508,8 @@ export function convertSaleReturn(
     row["Discount 2 Type"]                 = "";
     row["Discount 2"]                      = "";
     row["GST %"]                           = gstPct || "";
-    row["Classification Nature Type"]      = "Intrastate Sales Taxable";
-    row["RCM Applicable"]                  = "";
+    row["Classification Nature Type"]      = "NA";
+    row["RCM Applicable"]                  = "Intrastate Sales Taxable";
 
     out.push(row);
   });
@@ -531,7 +623,7 @@ function applyNumFormats(ws: XLSX.WorkSheet, numDataRows: number) {
     }
   }
   // Rate per Unit — 4 decimal places, General number type
-  const rateCol = SR_OUTPUT_HEADERS.indexOf("Rate per Unit (Without GST)");
+  const rateCol = SR_OUTPUT_HEADERS.indexOf("Rate per Unit (Without GST)*");
   if (rateCol >= 0) {
     for (let row = 1; row <= numDataRows; row++) {
       const addr = XLSX.utils.encode_cell({ r: row, c: rateCol });
@@ -551,6 +643,12 @@ export function buildSRWorkbook(rows: Record<string, unknown>[]): ArrayBuffer {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Sale Return Accounting");
   return XLSX.write(wb, { type: "array", bookType: "xlsx" }) as ArrayBuffer;
+}
+
+export function buildSRCSV(rows: Record<string, unknown>[]): string {
+  const data = [SR_OUTPUT_HEADERS, ...rows.map((r) => SR_OUTPUT_HEADERS.map((h) => r[h] ?? ""))];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  return XLSX.utils.sheet_to_csv(ws);
 }
 
 const SR_SPLIT_MAX = 4000;

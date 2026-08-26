@@ -1,55 +1,50 @@
 // Item Master — persistent item database (localStorage).
-// New items from Purchase/Sale/SR uploads auto-merge; existing items get missing fields filled in.
+// Compatible with standard Tally / Suvit Item Master Import structure (41 columns).
 // Strict deduplication ensures NO duplicate item names exist in DB or Differential Export.
 import * as XLSX from "xlsx";
 
 export const ITEM_MASTER_HEADERS = [
-  "Item Name*",
-  "Alias Name",
-  "Print Item Name",
-  "Item Category",
-  "Primary Unit of Measurement*",
-  "Primary Unit  of Conversion Rate",
-  "Secondary Unit of Measurement",
-  "Secondary Unit of Conversion Rate",
-  "Tertiary Unit of Measurement",
-  "Tertiary Unit of Conversion Rate",
-  "Decimal Places",
-  "SKU/Barcode",
-  "Description",
-  "Re Order Level",
-  "Re Order UOM",
-  "CF - Item Custom Field 1",
-  "CF - Item Custom Field 2",
-  "CF - Item Custom Field 3",
-  "CF - Item Custom Field 4",
-  "CF - Item Custom Field 5",
-  "GST Applicable*",
-  "GST Rate",
-  "HSN Code",
-  "GST Cess Rate",
-  "RCM Applicable",
+  "Item name",
+  "Alias name",
+  "Print item name",
+  "Item category",
+  "Primary unit of measurement",
+  "Secondary unit of measurement",
+  "Primary unit of conversion rate",
+  "Secondary unit of conversion rate",
+  "Tertiary unit of measurement",
+  "Tertiary unit of conversion rate",
+  "Tertiary unit selling price type",
+  "Tertiary unit selling price",
+  "Decimal places",
+  "Re order level",
+  "Re order uom",
+  "Gst applicable",
+  "Gst rate",
+  "Selling price type",
+  "Selling price",
+  "Secondary unit selling price type",
+  "Secondary unit selling price",
+  "Purchase price type",
+  "Purchase price",
   "MRP",
-  "MRP Discount Type",
-  "MRP Discount Value",
-  "Selling Price Type",
-  "Selling Price",
-  "Secondary Unit Selling Price Type",
-  "Secondary Unit Selling Price",
-  "Tertiary Unit Selling Price Type",
-  "Tertiary Unit Selling Price",
-  "Income Ledger To Be Associated",
-  "Discount Type",
-  "Discount Value",
-  "Purchase Price Type",
-  "Purchase Price",
-  "Purchase Discount Type",
-  "Purchase Discount Value",
-  "Expense Ledger To Be Associated",
-  "Decimal Places For Rate",
-  "Opening Quantity Unit of Measurement",
-  "Opening Quantity",
-  "Opening Rate (Without GST)",
+  "Mrp discount type",
+  "Mrp discount value",
+  "Decimal places for rate",
+  "Discount type",
+  "Discount value",
+  "Purchase discount type",
+  "Purchase discount value",
+  "Rcm applicable",
+  "Gst cess rate",
+  "HSN Code",
+  "Description",
+  "Income ledger to be associated",
+  "Expense ledger to be associated",
+  "Opening quantity unit of measurement",
+  "Opening quantity",
+  "Opening rate without gst",
+  "Skubarcode",
 ];
 
 export interface ItemMasterEntry {
@@ -67,13 +62,30 @@ export interface ItemMasterEntry {
 
 const LS_KEY = "xlsxConverter.itemMaster.v1";
 
-/** Clean string and remove invisible zero-width characters and collapse whitespace */
-export function normalizeItemName(raw: unknown): string {
-  if (raw === null || raw === undefined) return "";
-  return String(raw)
+/** Filter out pure numeric serial numbers, summary headings, and invalid junk strings */
+export function isValidItemName(raw: unknown): boolean {
+  if (raw === null || raw === undefined) return false;
+  const str = String(raw)
     .replace(/[\u200B-\u200D\uFEFF]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+  if (str.length < 2) return false;
+  // Pure digits or row numbers (e.g. "8", "9", "869") are NOT valid item names
+  if (/^\d+$/.test(str)) return false;
+  // Summary or header labels
+  if (/^(grand\s*total|sub\s*total|total|summary|invoice\s*no|date|sr\s*no|item\s*name|product\s*name|item\s*code)$/i.test(str)) return false;
+  return true;
+}
+
+/** Clean string and remove invisible zero-width characters and collapse whitespace */
+export function normalizeItemName(raw: unknown): string {
+  if (raw === null || raw === undefined) return "";
+  const str = String(raw)
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!isValidItemName(str)) return "";
+  return str;
 }
 
 /** Primary lookup key for strict item deduplication */
@@ -88,7 +100,7 @@ export function cleanItemKey(raw: unknown): string {
 
 export function cleanHSN(v: unknown): string {
   if (v === null || v === undefined) return "";
-  // Keep up to 8 digits numeric HSN
+  // Keep up to 8 digits numeric HSN (strip dots, dashes, spaces)
   return String(v).replace(/[^\d]/g, "").slice(0, 8);
 }
 
@@ -129,7 +141,7 @@ function removeStorageItem(key: string): void {
 
 /**
  * Load master items from localStorage.
- * Automatically cleans and deduplicates any previously stored entries by normalized item key.
+ * Automatically cleans, filters out invalid/numeric keys, and deduplicates.
  */
 export function loadMaster(): Map<string, ItemMasterEntry> {
   try {
@@ -141,7 +153,10 @@ export function loadMaster(): Map<string, ItemMasterEntry> {
     let hadDuplicates = false;
     for (const e of arr) {
       const cleanName = normalizeItemName(e.name);
-      if (!cleanName) continue;
+      if (!cleanName || !isValidItemName(cleanName)) {
+        hadDuplicates = true;
+        continue;
+      }
       const key = normalizeItemKey(cleanName);
       const existing = map.get(key);
 
@@ -342,7 +357,7 @@ export function importPurchaseFileToMaster(buf: ArrayBuffer): {
 
   const norm = (s: unknown) => String(s ?? "").toLowerCase().replace(/[^a-z0-9%/.]/g, " ").replace(/\s+/g, " ").trim();
 
-  // Look for header row
+  // Look for header row (e.g. row 7 in LeverEDGE file or row 0 in converted file)
   let headerIdx = -1;
   for (let i = 0; i < Math.min(25, all.length); i++) {
     const r = (all[i] || []).map(norm);
@@ -367,23 +382,31 @@ export function importPurchaseFileToMaster(buf: ArrayBuffer): {
     }
     for (const a of aliases) {
       const na = norm(a);
-      const idx = headers.findIndex((h) => h.includes(na));
+      const idx = headers.findIndex((h) => h === na || h.startsWith(na + " ") || h.endsWith(" " + na) || h.includes(" " + na + " "));
       if (idx >= 0) return idx;
     }
     return -1;
   };
 
-  const colItem = findCol("item name or alias name or sku", "item name", "product name", "product description", "item");
+  // Specific column matchers to avoid confusing 'item code' or 'sr no' with 'item name'
+  let colItem = headers.indexOf("item name");
+  if (colItem < 0) colItem = headers.indexOf("item name or alias name or sku");
+  if (colItem < 0) colItem = headers.indexOf("product name");
+  if (colItem < 0) colItem = headers.indexOf("product description");
+  if (colItem < 0) colItem = headers.findIndex((h) => h.includes("item name") || h.includes("product name"));
+
   const colHsn = findCol("hsn code", "hsn", "cf - item custom field name 1", "hsn sac", "sac code");
   const colMrp = findCol("mrp", "m.r.p.", "maximum retail price");
-  const colRate = findCol("rate per unit without gst", "purchase price", "rate per unit", "invoice price case", "price case");
+  const colCasePrice = findCol("invoice price case", "invoice(price/case)", "price case");
+  const colUpc = findCol("upc", "units per case", "pack units");
+  const colRate = findCol("rate per unit without gst", "purchase price", "rate per unit", "purchase rate");
   const colQty = findCol("purchase qty units", "purchase qty", "quantity", "qty");
   const colNetAmt = findCol("netamt", "net amt", "net amount");
   const colCgst = findCol("cgst %", "cgst%", "cgst percent");
   const colSgst = findCol("sgst %", "sgst%", "sgst percent");
   const colIgst = findCol("igst %", "igst%", "igst percent");
   const colGst = findCol("gst %", "gst%", "total tax %", "tax %");
-  const colCode = findCol("item code", "sku", "basepack code", "sku barcode");
+  const colCode = findCol("basepack code", "item code", "sku", "sku barcode");
   const colPack = findCol("pack size", "packsize");
 
   const candidates: MergeCandidate[] = [];
@@ -394,7 +417,7 @@ export function importPurchaseFileToMaster(buf: ArrayBuffer): {
     if (colItem < 0) continue;
     const rawName = row[colItem];
     const name = normalizeItemName(rawName);
-    if (!name || /grand\s*total/i.test(name)) continue;
+    if (!name || !isValidItemName(name)) continue;
 
     const hsnVal = colHsn >= 0 ? cleanHSN(row[colHsn]) : "";
     const mrpVal = colMrp >= 0 ? num(row[colMrp]) : 0;
@@ -410,7 +433,12 @@ export function importPurchaseFileToMaster(buf: ArrayBuffer): {
     }
 
     let rateVal = 0;
-    if (colRate >= 0 && num(row[colRate]) > 0) {
+    const casePrice = colCasePrice >= 0 ? num(row[colCasePrice]) : 0;
+    const upc = colUpc >= 0 ? num(row[colUpc]) : 0;
+
+    if (casePrice > 0 && upc > 0) {
+      rateVal = Math.round((casePrice / upc) * 10000) / 10000;
+    } else if (colRate >= 0 && num(row[colRate]) > 0) {
       rateVal = num(row[colRate]);
     } else if (colNetAmt >= 0 && colQty >= 0 && num(row[colQty]) > 0) {
       const net = num(row[colNetAmt]);
@@ -423,8 +451,9 @@ export function importPurchaseFileToMaster(buf: ArrayBuffer): {
     if (colPack >= 0 && row[colPack]) {
       desc = `Pack: ${String(row[colPack]).trim()}`;
     }
-    if (colCode >= 0 && row[colCode]) {
-      desc = desc ? `${desc} | Code: ${String(row[colCode]).trim()}` : `Code: ${String(row[colCode]).trim()}`;
+    const skuCode = colCode >= 0 && row[colCode] ? String(row[colCode]).trim() : "";
+    if (skuCode) {
+      desc = desc ? `${desc} | Code: ${skuCode}` : `Code: ${skuCode}`;
     }
 
     candidates.push({
@@ -643,52 +672,47 @@ export function buildItemMasterWorkbook(excludeNames?: Set<string>): {
     const row: Record<string, unknown> = {};
     for (const h of ITEM_MASTER_HEADERS) row[h] = "";
 
-    row["Item Name*"] = sanitizedEntry.name;
-    row["Alias Name"] = sanitizedEntry.alias || "";
-    row["Print Item Name"] = "";
-    row["Item Category"] = "GOODS";
-    row["Primary Unit of Measurement*"] = "PCS-PIECES";
-    row["Primary Unit  of Conversion Rate"] = "";
-    row["Secondary Unit of Measurement"] = "";
-    row["Secondary Unit of Conversion Rate"] = "";
-    row["Tertiary Unit of Measurement"] = "";
-    row["Tertiary Unit of Conversion Rate"] = "";
-    row["Decimal Places"] = 2;
-    row["SKU/Barcode"] = sanitizedEntry.sku || "";
-    row["Description"] = sanitizedEntry.description || "";
-    row["Re Order Level"] = "";
-    row["Re Order UOM"] = "";
-    row["CF - Item Custom Field 1"] = "";
-    row["CF - Item Custom Field 2"] = "";
-    row["CF - Item Custom Field 3"] = "";
-    row["CF - Item Custom Field 4"] = "";
-    row["CF - Item Custom Field 5"] = "";
-    row["GST Applicable*"] = "Yes";
-    row["GST Rate"] = sanitizedEntry.gstRate || "";
+    row["Item name"] = sanitizedEntry.name;
+    row["Alias name"] = sanitizedEntry.alias || "";
+    row["Print item name"] = "";
+    row["Item category"] = "GOODS";
+    row["Primary unit of measurement"] = "PCS-PIECES";
+    row["Secondary unit of measurement"] = "";
+    row["Primary unit of conversion rate"] = "";
+    row["Secondary unit of conversion rate"] = "";
+    row["Tertiary unit of measurement"] = "";
+    row["Tertiary unit of conversion rate"] = "";
+    row["Tertiary unit selling price type"] = "Without GST";
+    row["Tertiary unit selling price"] = "";
+    row["Decimal places"] = 2;
+    row["Re order level"] = "";
+    row["Re order uom"] = "";
+    row["Gst applicable"] = "Yes";
+    row["Gst rate"] = sanitizedEntry.gstRate > 0 ? sanitizedEntry.gstRate : "";
+    row["Selling price type"] = "Without GST";
+    row["Selling price"] = sanitizedEntry.lastSalePrice && sanitizedEntry.lastSalePrice > 0 ? sanitizedEntry.lastSalePrice : "";
+    row["Secondary unit selling price type"] = "Without GST";
+    row["Secondary unit selling price"] = "";
+    row["Purchase price type"] = "Without GST";
+    row["Purchase price"] = (sanitizedEntry.purchasePrice > 0 ? sanitizedEntry.purchasePrice : (sanitizedEntry.lastPurchasePrice || 0)) || "";
+    row["MRP"] = sanitizedEntry.mrp > 0 ? sanitizedEntry.mrp : "";
+    row["Mrp discount type"] = "₹";
+    row["Mrp discount value"] = "";
+    row["Decimal places for rate"] = 4;
+    row["Discount type"] = "₹";
+    row["Discount value"] = "";
+    row["Purchase discount type"] = "₹";
+    row["Purchase discount value"] = "";
+    row["Rcm applicable"] = "No";
+    row["Gst cess rate"] = "";
     row["HSN Code"] = sanitizedEntry.hsn || "";
-    row["GST Cess Rate"] = "";
-    row["RCM Applicable"] = "No";
-    row["MRP"] = sanitizedEntry.mrp || "";
-    row["MRP Discount Type"] = "₹";
-    row["MRP Discount Value"] = 0;
-    row["Selling Price Type"] = "Without GST";
-    row["Selling Price"] = sanitizedEntry.lastSalePrice || 0;
-    row["Secondary Unit Selling Price Type"] = "Without GST";
-    row["Secondary Unit Selling Price"] = "";
-    row["Tertiary Unit Selling Price Type"] = "Without GST";
-    row["Tertiary Unit Selling Price"] = "";
-    row["Income Ledger To Be Associated"] = "Sale";
-    row["Discount Type"] = "₹";
-    row["Discount Value"] = 0;
-    row["Purchase Price Type"] = "Without GST";
-    row["Purchase Price"] = sanitizedEntry.purchasePrice || (sanitizedEntry.lastPurchasePrice || 0);
-    row["Purchase Discount Type"] = "₹";
-    row["Purchase Discount Value"] = 0;
-    row["Expense Ledger To Be Associated"] = "Purchase";
-    row["Decimal Places For Rate"] = 4;
-    row["Opening Quantity Unit of Measurement"] = "PCS-PIECES";
-    row["Opening Quantity"] = 0;
-    row["Opening Rate (Without GST)"] = 0;
+    row["Description"] = sanitizedEntry.description || "";
+    row["Income ledger to be associated"] = "Sale";
+    row["Expense ledger to be associated"] = "Purchase";
+    row["Opening quantity unit of measurement"] = "PCS-PIECES";
+    row["Opening quantity"] = "";
+    row["Opening rate without gst"] = "";
+    row["Skubarcode"] = sanitizedEntry.sku || "";
     data.push(ITEM_MASTER_HEADERS.map((h) => row[h]));
   }
 
@@ -745,52 +769,47 @@ export function buildItemMasterCSV(excludeNames?: Set<string>): {
     const row: Record<string, unknown> = {};
     for (const h of ITEM_MASTER_HEADERS) row[h] = "";
 
-    row["Item Name*"] = sanitizedEntry.name;
-    row["Alias Name"] = sanitizedEntry.alias || "";
-    row["Print Item Name"] = "";
-    row["Item Category"] = "GOODS";
-    row["Primary Unit of Measurement*"] = "PCS-PIECES";
-    row["Primary Unit  of Conversion Rate"] = "";
-    row["Secondary Unit of Measurement"] = "";
-    row["Secondary Unit of Conversion Rate"] = "";
-    row["Tertiary Unit of Measurement"] = "";
-    row["Tertiary Unit of Conversion Rate"] = "";
-    row["Decimal Places"] = 2;
-    row["SKU/Barcode"] = sanitizedEntry.sku || "";
-    row["Description"] = sanitizedEntry.description || "";
-    row["Re Order Level"] = "";
-    row["Re Order UOM"] = "";
-    row["CF - Item Custom Field 1"] = "";
-    row["CF - Item Custom Field 2"] = "";
-    row["CF - Item Custom Field 3"] = "";
-    row["CF - Item Custom Field 4"] = "";
-    row["CF - Item Custom Field 5"] = "";
-    row["GST Applicable*"] = "Yes";
-    row["GST Rate"] = sanitizedEntry.gstRate || "";
+    row["Item name"] = sanitizedEntry.name;
+    row["Alias name"] = sanitizedEntry.alias || "";
+    row["Print item name"] = "";
+    row["Item category"] = "GOODS";
+    row["Primary unit of measurement"] = "PCS-PIECES";
+    row["Secondary unit of measurement"] = "";
+    row["Primary unit of conversion rate"] = "";
+    row["Secondary unit of conversion rate"] = "";
+    row["Tertiary unit of measurement"] = "";
+    row["Tertiary unit of conversion rate"] = "";
+    row["Tertiary unit selling price type"] = "Without GST";
+    row["Tertiary unit selling price"] = "";
+    row["Decimal places"] = 2;
+    row["Re order level"] = "";
+    row["Re order uom"] = "";
+    row["Gst applicable"] = "Yes";
+    row["Gst rate"] = sanitizedEntry.gstRate > 0 ? sanitizedEntry.gstRate : "";
+    row["Selling price type"] = "Without GST";
+    row["Selling price"] = sanitizedEntry.lastSalePrice && sanitizedEntry.lastSalePrice > 0 ? sanitizedEntry.lastSalePrice : "";
+    row["Secondary unit selling price type"] = "Without GST";
+    row["Secondary unit selling price"] = "";
+    row["Purchase price type"] = "Without GST";
+    row["Purchase price"] = (sanitizedEntry.purchasePrice > 0 ? sanitizedEntry.purchasePrice : (sanitizedEntry.lastPurchasePrice || 0)) || "";
+    row["MRP"] = sanitizedEntry.mrp > 0 ? sanitizedEntry.mrp : "";
+    row["Mrp discount type"] = "₹";
+    row["Mrp discount value"] = "";
+    row["Decimal places for rate"] = 4;
+    row["Discount type"] = "₹";
+    row["Discount value"] = "";
+    row["Purchase discount type"] = "₹";
+    row["Purchase discount value"] = "";
+    row["Rcm applicable"] = "No";
+    row["Gst cess rate"] = "";
     row["HSN Code"] = sanitizedEntry.hsn || "";
-    row["GST Cess Rate"] = "";
-    row["RCM Applicable"] = "No";
-    row["MRP"] = sanitizedEntry.mrp || "";
-    row["MRP Discount Type"] = "₹";
-    row["MRP Discount Value"] = 0;
-    row["Selling Price Type"] = "Without GST";
-    row["Selling Price"] = sanitizedEntry.lastSalePrice || 0;
-    row["Secondary Unit Selling Price Type"] = "Without GST";
-    row["Secondary Unit Selling Price"] = "";
-    row["Tertiary Unit Selling Price Type"] = "Without GST";
-    row["Tertiary Unit Selling Price"] = "";
-    row["Income Ledger To Be Associated"] = "Sale";
-    row["Discount Type"] = "₹";
-    row["Discount Value"] = 0;
-    row["Purchase Price Type"] = "Without GST";
-    row["Purchase Price"] = sanitizedEntry.purchasePrice || (sanitizedEntry.lastPurchasePrice || 0);
-    row["Purchase Discount Type"] = "₹";
-    row["Purchase Discount Value"] = 0;
-    row["Expense Ledger To Be Associated"] = "Purchase";
-    row["Decimal Places For Rate"] = 4;
-    row["Opening Quantity Unit of Measurement"] = "PCS-PIECES";
-    row["Opening Quantity"] = 0;
-    row["Opening Rate (Without GST)"] = 0;
+    row["Description"] = sanitizedEntry.description || "";
+    row["Income ledger to be associated"] = "Sale";
+    row["Expense ledger to be associated"] = "Purchase";
+    row["Opening quantity unit of measurement"] = "PCS-PIECES";
+    row["Opening quantity"] = "";
+    row["Opening rate without gst"] = "";
+    row["Skubarcode"] = sanitizedEntry.sku || "";
     data.push(ITEM_MASTER_HEADERS.map((h) => row[h]));
   }
 

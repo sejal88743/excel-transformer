@@ -24,6 +24,7 @@ import {
   mergeFromPurchaseRows,
   importPurchaseFileToMaster,
   buildItemMasterWorkbook,
+  buildItemMasterCSV,
   getMasterCount,
   clearMaster,
   parseExistingItemMaster,
@@ -378,6 +379,18 @@ function Index() {
     const { buffer } = buildItemMasterWorkbook(existingMaster.existingNames ?? undefined);
     const prefix = existingMaster.existingNames ? "New_ItemMaster" : "ItemMaster";
     downloadBuffer(buffer, `${prefix}_${folderDate}`);
+  }, [folderDate, existingMaster.existingNames]);
+
+  const onItemMasterDownloadCSV = useCallback(() => {
+    const { csv } = buildItemMasterCSV(existingMaster.existingNames ?? undefined);
+    const prefix = existingMaster.existingNames ? "New_ItemMaster" : "ItemMaster";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${prefix}_${folderDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   }, [folderDate, existingMaster.existingNames]);
 
   const onItemMasterClear = useCallback(() => {
@@ -1061,7 +1074,15 @@ function Index() {
                 disabled={newItemsSummary.newCount === 0}
                 className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
               >
-                ⬇ Download {existingMaster.existingNames ? `New Items Master (${newItemsSummary.newCount})` : `Item Master (${itemMaster.total})`}
+                ⬇ Download Excel (.xlsx) ({newItemsSummary.newCount})
+              </button>
+              <button
+                type="button"
+                onClick={onItemMasterDownloadCSV}
+                disabled={newItemsSummary.newCount === 0}
+                className="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent disabled:opacity-50"
+              >
+                ⬇ CSV (.csv)
               </button>
               <button
                 type="button"
