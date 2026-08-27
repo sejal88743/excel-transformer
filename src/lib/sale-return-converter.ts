@@ -503,7 +503,7 @@ export function convertSaleReturn(
 
     row["Rate per Unit (Without GST)*"]    = ratePerUnit;
     if (totalDisc > 0) {
-      row["Discount 1 Type"]               = "₹";
+      row["Discount 1 Type"]               = "T";
       row["Discount 1"]                    = totalDisc;
     } else {
       row["Discount 1 Type"]               = "";
