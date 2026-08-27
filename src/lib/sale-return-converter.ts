@@ -718,6 +718,28 @@ export function buildSRWorkbooks(rows: Record<string, unknown>[]): ArrayBuffer[]
   return chunks.map((chunk) => buildSRWorkbook(chunk));
 }
 
+/**
+ * Preferred export: fills the original ERP template (keeps hidden option sheet
+ * and all dropdown data validations) so the import utility accepts the file.
+ */
+export async function buildSRWorkbooksFromTemplate(
+  rows: Record<string, unknown>[]
+): Promise<ArrayBuffer[]> {
+  const { buildSRWorkbookFromTemplate } = await import("./sr-template-writer");
+  const chunks = splitSRAtBillBoundary(rows);
+  const out: ArrayBuffer[] = [];
+  for (const chunk of chunks) {
+    try {
+      out.push(await buildSRWorkbookFromTemplate(chunk));
+    } catch (e) {
+      console.error("Template fill failed, falling back to plain workbook", e);
+      out.push(buildSRWorkbook(chunk));
+    }
+  }
+  return out;
+}
+
+
 export function validateSaleReturnFile(buf: ArrayBuffer): { valid: boolean; error?: string } {
   try {
     const wb = XLSX.read(new Uint8Array(buf), { type: "array", cellDates: false, sheetRows: 60 });

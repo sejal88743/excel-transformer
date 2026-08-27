@@ -13,7 +13,7 @@ import {
 } from "@/lib/sale-converter";
 import {
   convertSaleReturn,
-  buildSRWorkbooks,
+  buildSRWorkbooksFromTemplate,
   validateSaleReturnFile,
   type SRConvertStats,
 } from "@/lib/sale-return-converter";
@@ -210,7 +210,7 @@ function Index() {
         }
         const { rows, stats } = convertSaleReturn(srBuf.current, discMap, hsnMap);
         datasetStore.setReturn(rows, srName);
-        srBlob.current = buildSRWorkbooks(rows);
+        srBlob.current = await buildSRWorkbooksFromTemplate(rows);
         setSR({
           stage: "ready",
           stats,
